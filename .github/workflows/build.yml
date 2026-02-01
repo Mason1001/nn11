@@ -27,11 +27,30 @@ jobs:
           arch: "win64_msvc2019_64"
           cache: true
 
-      - name: Setup vcpkg
-        uses: lukka/run-vcpkg@v11
-        with:
-          runVcpkgInstall: true
-          vcpkgDirectory: vcpkg
+      - name: Setup vcpkg (manual)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          # Read vcpkg baseline from vcpkg.json
+          $manifest = Get-Content -Raw -Path "${{ github.workspace }}\vcpkg.json" | ConvertFrom-Json
+          $baseline = $manifest.'builtin-baseline'
+          if (-not $baseline) { throw "builtin-baseline not found in vcpkg.json" }
+
+          # Clone vcpkg and checkout the exact baseline for reproducible builds
+          $vcpkgDir = Join-Path "${{ github.workspace }}" "vcpkg"
+          git clone https://github.com/microsoft/vcpkg $vcpkgDir
+          Push-Location $vcpkgDir
+          git checkout $baseline
+          .\bootstrap-vcpkg.bat
+          Pop-Location
+
+          # Use a stable install root inside the build folder
+          $installRoot = Join-Path "${{ github.workspace }}" "build\vcpkg_installed"
+          "VCPKG_ROOT=$vcpkgDir" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "VCPKG_INSTALLED_DIR=$installRoot" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+          & "$vcpkgDir\vcpkg.exe" install --triplet x64-windows --clean-after-build
 
       - name: Configure (CMake)
         shell: pwsh
