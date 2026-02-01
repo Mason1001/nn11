@@ -1,0 +1,65 @@
+name: Build Windows x64
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.6.2"
+          arch: "win64_msvc2019_64"
+          cache: true
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          # Uses vcpkg.json (manifest mode) + builtin-baseline from the repo
+          runVcpkgInstall: true
+
+      - name: Configure (CMake)
+        shell: pwsh
+        run: |
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\\scripts\\buildsystems\\vcpkg.cmake" `
+            -DQt6_DIR="$env:Qt6_DIR"
+
+      - name: Build
+        run: |
+          cmake --build build --config Release --parallel
+
+      - name: Prepare deploy folder
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path deploy | Out-Null
+          Copy-Item -Force "build\Release\AccessibilityGamingAssistant.exe" "deploy\" 
+          $windeployqt = Resolve-Path (Join-Path $env:Qt6_DIR "..\..\..\bin\windeployqt.exe")
+          & $windeployqt "deploy\AccessibilityGamingAssistant.exe" --release --no-translations
+
+          # Copy OpenCV runtime DLLs from vcpkg
+          $opencvBin = Join-Path "${env:VCPKG_ROOT}" "installed\x64-windows\bin"
+          if (Test-Path $opencvBin) {
+            Copy-Item -Force "$opencvBin\opencv_*.dll" "deploy\" -ErrorAction SilentlyContinue
+          }
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AccessibilityGamingAssistant-Windows-x64
+          path: deploy/
