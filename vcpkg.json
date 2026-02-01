@@ -7,21 +7,7 @@
   "license": "MIT",
   "supports": "windows & x64",
   "dependencies": [
-    {
-      "name": "opencv4",
-      "default-features": false,
-      "features": [
-        "core",
-        "imgproc",
-        "imgcodecs",
-        "videoio",
-        "highgui",
-        "jpeg",
-        "png",
-        "tiff",
-        "webp"
-      ]
-    }
+    "opencv4"
   ],
   "builtin-baseline": "b1b19307e2d2ec1eefbdb7ea069de7d4bcd31f01"
 }
