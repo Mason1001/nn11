@@ -11,6 +11,11 @@
       "name": "opencv4",
       "default-features": false,
       "features": [
+        "core",
+        "imgproc",
+        "imgcodecs",
+        "videoio",
+        "highgui",
         "jpeg",
         "png",
         "tiff",
